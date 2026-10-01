@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Light Cart POS</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        display: grid;
+        place-items: center;
+        background: #f4f4f5;
+        color: #18181b;
+        font: 16px/1.45 "Segoe UI", sans-serif;
+      }
+      main {
+        width: min(440px, calc(100% - 32px));
+        padding: 28px 24px;
+        background: #fff;
+        border: 1px solid #e4e4e7;
+        border-radius: 16px;
+      }
+      h1 { margin: 0 0 8px; font-size: 22px; }
+      p { margin: 0; color: #3f3f46; }
+      button {
+        margin-top: 20px;
+        width: 100%;
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 16px;
+        background: #059669;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:focus-visible { outline: 3px solid #6ee7b7; outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Can't reach Light Cart</h1>
+      <p id="detail">This till is offline or the counter site did not load. You can keep this window open and try again.</p>
+      <button id="retry" type="button" autofocus>Try again</button>
+    </main>
+    <script>
+      const button = document.getElementById("retry")
+      function retry() {
+        if (window.lightCartDesktop && window.lightCartDesktop.reload) {
+          button.disabled = true
+          button.textContent = "Connecting…"
+          Promise.resolve(window.lightCartDesktop.reload()).catch(() => {
+            button.disabled = false
+            button.textContent = "Try again"
+          })
+        }
+      }
+      button.addEventListener("click", retry)
+      window.addEventListener("online", retry)
+    </script>
+  </body>
+</html>
