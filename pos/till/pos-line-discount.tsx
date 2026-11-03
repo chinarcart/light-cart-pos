@@ -62,7 +62,8 @@ function installSalePatch() {
                 (row.variantId ?? null) === (item.variantId ?? null)
             )
             const list = line?.listUnitPrice
-            if (list == null || !(line.lineDiscount && line.lineDiscount > 0)) return item
+            const savedOff = line?.lineDiscount ?? 0
+            if (!line || list == null || savedOff <= 0) return item
             const off = roundMoney(Math.max(0, list * item.quantity - item.unitPrice * item.quantity))
             if (off <= 0) return item
             marks.push({ p: item.productId, v: item.variantId || "", a: off })
