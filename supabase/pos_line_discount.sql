@@ -66,9 +66,28 @@ declare
   v_cash_tendered numeric(12, 2);
   v_tender_count integer := 0;
   v_header_ref text := nullif(trim(p_payment_ref), '');
+  v_notes text := p_notes;
+  v_ld jsonb := null;
 begin
   if not public.can_run_pos() then
     raise exception 'POS access required';
+  end if;
+
+  -- Optional trailer so the till can send line discounts without a schema change.
+  -- Shape: §LD[{"p":"<product uuid>","v":"<variant uuid or empty>","a":12.5}]
+  if p_notes is not null and position('§LD' in p_notes) > 0 then
+    begin
+      v_ld := substring(p_notes from position('§LD' in p_notes) + 3)::jsonb;
+      v_notes := nullif(btrim(substring(p_notes from 1 for position('§LD' in p_notes) - 1)), '');
+      if jsonb_typeof(v_ld) <> 'array' then
+        v_ld := null;
+        v_notes := p_notes;
+      end if;
+    exception
+      when others then
+        v_ld := null;
+        v_notes := p_notes;
+    end;
   end if;
 
   if p_items is null
@@ -154,6 +173,13 @@ begin
     v_requested_price := (v_item->>'unit_price')::numeric;
     v_barcode := nullif(trim(v_item->>'barcode'), '');
     v_line_discount := greatest(coalesce((v_item->>'line_discount')::numeric, 0), 0);
+    if v_ld is not null then
+      select greatest(v_line_discount, coalesce(max((x->>'a')::numeric), 0))
+      into v_line_discount
+      from jsonb_array_elements(v_ld) x
+      where x->>'p' = v_product_id::text
+        and coalesce(nullif(x->>'v', ''), '') = coalesce(v_variant_id::text, '');
+    end if;
 
     if v_qty is null or v_qty <= 0 then
       raise exception 'Invalid quantity for product %', v_product_id;
@@ -348,7 +374,7 @@ begin
         else null
       end,
       v_change,
-      nullif(trim(p_notes), ''),
+      nullif(trim(v_notes), ''),
       v_client_id,
       v_invoice
     )
@@ -387,7 +413,7 @@ begin
             else null
           end,
           v_change,
-          nullif(trim(p_notes), ''),
+          nullif(trim(v_notes), ''),
           v_client_id,
           v_invoice
         )
